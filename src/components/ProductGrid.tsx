@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { Product, ProductsResponse } from "@/types/product";
 import ProductCard from "./ProductCard";
@@ -48,42 +48,45 @@ function ProductGridContent() {
 		}
 	};
 
-	const fetchProducts = async (pageNumber: number) => {
-		try {
-			setLoading(true);
-			const params = new URLSearchParams({
-				page: pageNumber.toString(),
-				page_size: "20",
-				json: "true",
-			});
+	const fetchProducts = useCallback(
+		async (pageNumber: number) => {
+			try {
+				setLoading(true);
+				const params = new URLSearchParams({
+					page: pageNumber.toString(),
+					page_size: "20",
+					json: "true",
+				});
 
-			if (searchQuery) {
-				params.append("search_terms", searchQuery);
+				if (searchQuery) {
+					params.append("search_terms", searchQuery);
+				}
+
+				if (categoryFilter) {
+					params.append("categories", categoryFilter);
+				}
+
+				const response = await api.get<ProductsResponse>(
+					`/cgi/search.pl?${params}`,
+				);
+				const newProducts = response.data.products;
+
+				if (pageNumber === 1) {
+					setProducts(newProducts);
+				} else {
+					setProducts((prev) => [...prev, ...newProducts]);
+				}
+
+				setHasMore(newProducts?.length > 0);
+			} catch (error) {
+				console.error("Error fetching products:", error);
+				setHasMore(false);
+			} finally {
+				setLoading(false);
 			}
-
-			if (categoryFilter) {
-				params.append("categories", categoryFilter);
-			}
-
-			const response = await api.get<ProductsResponse>(
-				`/cgi/search.pl?${params}`,
-			);
-			const newProducts = response.data.products;
-
-			if (pageNumber === 1) {
-				setProducts(newProducts);
-			} else {
-				setProducts((prev) => [...prev, ...newProducts]);
-			}
-
-			setHasMore(newProducts?.length > 0);
-		} catch (error) {
-			console.error("Error fetching products:", error);
-			setHasMore(false);
-		} finally {
-			setLoading(false);
-		}
-	};
+		},
+		[searchQuery, categoryFilter],
+	);
 
 	// Use useEffect with a cleanup function to avoid memory leaks
 	useEffect(() => {
@@ -102,7 +105,7 @@ function ProductGridContent() {
 		return () => {
 			mounted = false;
 		};
-	}, [searchQuery, categoryFilter]);
+	}, [searchQuery, categoryFilter, fetchProducts]);
 
 	const loadMore = () => {
 		const nextPage = page + 1;

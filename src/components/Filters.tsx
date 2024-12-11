@@ -15,7 +15,7 @@ export default function Filters() {
 				const response = await api.get("/categories.json");
 				// Extract and sort unique categories
 				const uniqueCategories = response.data.tags
-					.map((tag: any) => tag.name)
+					.map((tag: { name: string }) => tag.name)
 					.sort();
 				setCategories(uniqueCategories);
 			} catch (error) {
